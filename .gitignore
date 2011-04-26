@@ -1,0 +1,9 @@
+bin
+.settings
+.classpath
+.project
+.gwt
+war/WEB-INF/lib
+war/WEB-INF/classes
+war/WEB-INF/deploy
+war/helix
