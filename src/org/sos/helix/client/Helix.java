@@ -10,9 +10,10 @@ import org.jbox2d.dynamics.BodyDef;
 import org.jbox2d.dynamics.BodyType;
 import org.jbox2d.dynamics.FixtureDef;
 import org.jbox2d.dynamics.World;
+import org.sos.helix.client.websocket.WebSocketCallback;
+import org.sos.helix.client.websocket.WebSocketClient;
+
 import com.google.gwt.core.client.EntryPoint;
-import com.google.gwt.core.client.Scheduler;
-import com.google.gwt.core.client.Scheduler.RepeatingCommand;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.user.client.ui.Button;
@@ -26,7 +27,7 @@ import com.google.gwt.widgetideas.graphics.client.GWTCanvas;
 /**
  * Entry point classes define <code>onModuleLoad()</code>.
  */
-public class Helix implements EntryPoint {
+public class Helix implements EntryPoint, WebSocketCallback {
 	
 	private GWTCanvas canvas;
 	
@@ -48,7 +49,13 @@ public class Helix implements EntryPoint {
 	
 	private Vec2 vectZero = new Vec2(0,0);
 	
-	private int numeroDeCuerpos = 10;
+	private int numeroDeCuerpos = 1;
+	
+	final float timeStep = 1.0f / 60f;
+	
+	private long step = 0;
+	
+	private boolean onsync = false;
 	
 	/**
 	 * This is the entry point method.
@@ -88,24 +95,26 @@ public class Helix implements EntryPoint {
         circleFixture.density = 1;
         circleFixture.friction = 0.0f;
         circleFixture.restitution = 1f;
+        
         inicializaObjetos();
-        final float timeStep = 1.0f / 100f;
-	    RepeatingCommand cmd = new RepeatingCommand() {
-			public boolean execute() {
-				mundo.step(timeStep, 10, 10);
-				mundo.clearForces();
+        
+	    //RepeatingCommand cmd = new RepeatingCommand() {
+			//public boolean execute() {
+				//mundo.step(timeStep, 10, 10);
+				//mundo.clearForces();
 				//body.applyForce(force, point)
-				canvas.clear();
-				for (Body b: cuerpos) {
-					drawCircle(b.getPosition().x * escala, sizeY - (b.getPosition().y * escala));
-				}
+				//canvas.clear();
+				//for (Body b: cuerpos) {
+					//drawCircle(b.getPosition().x * escala, sizeY - (b.getPosition().y * escala));
+				//}
 				//System.out.println("x:" + body.getPosition().x + "y:" +  body.getPosition().y);
 				//System.out.println("Y" +  (sizeY - (body.getPosition().y * escala)));
-				return true;
-			}
-	    };
-	    Scheduler.get().scheduleFixedPeriod(cmd,10);
-	    
+				//return true;
+			//}
+	    //};
+	    //Scheduler.get().scheduleFixedPeriod(cmd,10);
+        WebSocketClient webclient = new WebSocketClient(this);
+        webclient.connect("ws://localhost:8080/Helix-Server-Test/HelixSync");
 	}
 	
 	private void inicializaObjetos() {
@@ -157,15 +166,48 @@ public class Helix implements EntryPoint {
 	}
 	
 	private Vec2 posicionInicial(){
-		Double a = Math.random();
-		Double b = Math.random();
-		return new Vec2(a.floatValue()*(sizeX - 15)/escala, b.floatValue()*(sizeY - 15)/escala );
+		//Double a = Math.random();
+		//Double b = Math.random();
+		//return new Vec2(a.floatValue()*(sizeX - 15)/escala, b.floatValue()*(sizeY - 15)/escala );
+		return new Vec2(1,3);
 	}
 	
 	private Vec2 fuerzaInicial() {
-		Double a = Math.random() - .5;
-		Double b = Math.random() - .5;
-		return new Vec2(a.floatValue()*velocidadMaxima *2, b.floatValue()*velocidadMaxima *2);
+		//Double a = Math.random() - .5;
+		//Double b = Math.random() - .5;
+		//return new Vec2(a.floatValue()*velocidadMaxima *2, b.floatValue()*velocidadMaxima *2);
+		return new Vec2(8,10);
+	}
+
+	@Override
+	public void connected() {
+	}
+
+	@Override
+	public void disconnected() {
+	}
+
+	@Override
+	public void message(String message) {
+		if (!onsync) {
+			step++;
+			long stepServer = Long.parseLong(message);
+			if (step < stepServer) {
+				onsync = true;
+				while (step < stepServer) {
+					mundo.step(timeStep, 10, 10);
+					mundo.clearForces();
+					step++;
+				}
+				onsync = false;
+			}
+			mundo.step(timeStep, 10, 10);
+			mundo.clearForces();
+			canvas.clear();
+			for (Body b: cuerpos) {
+				drawCircle(b.getPosition().x * escala, sizeY - (b.getPosition().y * escala));
+			}
+		}
 	}
 	
 }
